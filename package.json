@@ -1,7 +1,7 @@
 {
-  "name": "local-cdp-bridge",
+  "name": "@local-cdp/bridge",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Local desktop bridge for connecting web apps to a user-authorized Chrome or Edge CDP session.",
   "license": "Apache-2.0",
   "author": "local-cdp contributors",
@@ -13,6 +13,17 @@
   "bugs": {
     "url": "https://github.com/local-cdp/local-cdp-bridge/issues"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "files": [
+    "dist/**/*",
+    "assets/**/*",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "type": "module",
   "main": "dist/desktop/main.js",
   "bin": {
