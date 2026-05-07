@@ -36,8 +36,6 @@ If no `--allowed-origin` is provided, origin restrictions are left to the MCP cl
 - `dom_fill`
 - `files_upload`
 
-Risky clicks are blocked by default when the visible text looks like a publish, submit, delete, pay, or send action.
-
 ## Notes
 
 - The MCP server communicates over stdio using JSON-RPC messages.

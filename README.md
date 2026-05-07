@@ -50,11 +50,23 @@ Browser debug launch uses `about:blank` by default. `profileDir` is optional; if
 
 ## MCP
 
-The project also includes a local MCP stdio server:
+The project also includes a local MCP stdio server for agent tools that need generic browser control on the user's machine. It connects to the same local Chrome or Edge debugging session and exposes a small set of browser tools over JSON-RPC stdio.
 
 ```bash
 local-cdp-bridge-mcp --cdp-url http://127.0.0.1:9222
 ```
+
+Available MCP tools:
+
+- `browser_status`
+- `pages_open`
+- `pages_screenshot`
+- `dom_text`
+- `dom_click`
+- `dom_fill`
+- `files_upload`
+
+The MCP server is generic infrastructure. It does not contain website-specific publishing, scraping, messaging, payment, or account workflows.
 
 See [docs/mcp.md](docs/mcp.md).
 

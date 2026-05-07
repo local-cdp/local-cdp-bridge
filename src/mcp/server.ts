@@ -70,7 +70,7 @@ const tools = [
   },
   {
     name: 'dom_click',
-    description: 'Click a selector. Risky button text is blocked by default.',
+    description: 'Click a selector in the connected local browser.',
     inputSchema: {
       type: 'object',
       required: ['pageId', 'selector'],
