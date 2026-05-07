@@ -1,0 +1,99 @@
+{
+  "name": "local-cdp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local desktop bridge for connecting web apps to a user-authorized Chrome or Edge CDP session.",
+  "license": "Apache-2.0",
+  "author": "local-cdp contributors",
+  "homepage": "https://github.com/local-cdp/local-cdp-bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/local-cdp/local-cdp-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/local-cdp/local-cdp-bridge/issues"
+  },
+  "type": "module",
+  "main": "dist/desktop/main.js",
+  "bin": {
+    "local-cdp-bridge": "dist/cli/index.js",
+    "local-cdp-bridge-mcp": "dist/mcp/server.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-renderer-assets.mjs",
+    "dev:desktop": "npm run build && electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "checksums": "node scripts/create-checksums.mjs",
+    "test:e2e": "npm run build && node scripts/e2e-local.mjs",
+    "test:mcp": "npm run build && node scripts/e2e-mcp.mjs"
+  },
+  "build": {
+    "appId": "org.localcdpbridge.app",
+    "productName": "Browser Bridge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json",
+      "README.md",
+      "LICENSE",
+      "NOTICE"
+    ],
+    "protocols": [
+      {
+        "name": "local-cdp-bridge",
+        "schemes": ["local-cdp-bridge"]
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "artifactName": "local-cdp-bridge-v${version}-windows-${arch}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "msi",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "artifactName": "local-cdp-bridge-v${version}-macos-${arch}.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "category": "public.app-category.utilities"
+    }
+  },
+  "dependencies": {
+    "playwright-core": "^1.52.0",
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/ws": "^8.5.10",
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3",
+    "playwright": "^1.52.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.5"
+  }
+}

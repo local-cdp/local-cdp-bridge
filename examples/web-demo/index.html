@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>local-cdp-bridge Web Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 32px; max-width: 760px; }
+      button, input { font: inherit; padding: 8px 10px; margin: 4px 0; }
+      pre { background: #f4f4f4; padding: 12px; overflow: auto; }
+      details { margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <h1>local-cdp-bridge Web Demo</h1>
+    <p>This page demonstrates health probing, scheme launch, WebSocket hello, and a simple page action.</p>
+    <button id="openBridge">Open Bridge</button>
+    <button id="startChrome">Start Chrome Debug</button>
+    <button id="health">Check Health</button>
+    <button id="connect">Connect WebSocket</button>
+    <button id="openPage">Open Demo Page</button>
+    <pre id="log"></pre>
+    <details>
+      <summary>Debug responses</summary>
+      <pre id="debug"></pre>
+    </details>
+    <script src="./main.js"></script>
+  </body>
+</html>

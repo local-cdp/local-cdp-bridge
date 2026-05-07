@@ -1,0 +1,323 @@
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, shell, Tray } from 'electron';
+import { fileURLToPath } from 'node:url';
+import { startHttpServer, type BridgeHttpServer } from '../server/http-server.js';
+import { detectBrowsers, launchBrowser } from '../browser/launcher.js';
+import { clearBrowserPath, loadBrowserPathSettings, saveBrowserPath, saveLanguagePreference } from '../browser/settings.js';
+import { acceptConsent, hasCurrentConsent, TERMS_VERSION } from '../security/consent.js';
+import { grantPermission, listPermissions, revokePermission } from '../security/permissions.js';
+import type { BridgeMethod } from '../protocol/types.js';
+
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let server: BridgeHttpServer | null = null;
+let pendingAuthorization:
+  | {
+      origin: string;
+      displayName?: string;
+      allowedOrigins: string[];
+      capabilities?: BridgeMethod[];
+      requestedAt: string;
+    }
+  | null = null;
+
+const APP_VERSION = app.getVersion();
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'local-cdp-bridge', privileges: { standard: true } }]);
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
+function createWindow(): BrowserWindow {
+  const appIcon = loadAppIcon();
+  const window = new BrowserWindow({
+    width: 820,
+    height: 520,
+    minWidth: 760,
+    minHeight: 480,
+    title: 'Browser Bridge',
+    icon: appIcon,
+    webPreferences: {
+      preload: fileURLToPath(new URL('./preload.cjs', import.meta.url)),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  window.setMenuBarVisibility(false);
+  window.loadFile(fileURLToPath(new URL('./renderer/agreement.html', import.meta.url)));
+  window.on('closed', () => {
+    mainWindow = null;
+  });
+
+  return window;
+}
+
+function showWindow(): void {
+  if (!mainWindow) mainWindow = createWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray(): void {
+  const icon = loadAppIcon();
+  tray = new Tray(icon);
+  tray.setToolTip('Browser Bridge');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Open Browser Bridge', click: showWindow },
+      { type: 'separator' },
+      { label: 'Launch Chrome', click: () => mainWindow?.webContents.send('bridge:launch-browser', 'chrome') },
+      { label: 'Launch Edge', click: () => mainWindow?.webContents.send('bridge:launch-browser', 'edge') },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() }
+    ])
+  );
+}
+
+function loadAppIcon(): Electron.NativeImage {
+  const icon = nativeImage.createFromPath(fileURLToPath(new URL('../../assets/icon.ico', import.meta.url)));
+  return icon.isEmpty() ? createAppIcon() : icon;
+}
+
+function createAppIcon(): Electron.NativeImage {
+  const size = 32;
+  const buffer = Buffer.alloc(size * size * 4);
+  const radius = 7;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = (y * size + x) * 4;
+      const alpha = roundedRectAlpha(x, y, size, radius);
+      const t = (x + y) / (size * 2);
+      buffer[index] = Math.round(232 - 18 * t);
+      buffer[index + 1] = Math.round(122 + 64 * t);
+      buffer[index + 2] = Math.round(31 + 24 * t);
+      buffer[index + 3] = alpha;
+    }
+  }
+  drawTrayGlyph(buffer, size);
+  return nativeImage.createFromBitmap(buffer, { width: size, height: size, scaleFactor: 1 });
+}
+
+function roundedRectAlpha(x: number, y: number, size: number, radius: number): number {
+  const dx = x < radius ? radius - x : x >= size - radius ? x - (size - radius - 1) : 0;
+  const dy = y < radius ? radius - y : y >= size - radius ? y - (size - radius - 1) : 0;
+  return dx * dx + dy * dy <= radius * radius ? 255 : 0;
+}
+
+function drawTrayGlyph(buffer: Buffer, size: number): void {
+  const fill = (x: number, y: number, w: number, h: number) => {
+    for (let row = y; row < y + h; row += 1) {
+      for (let col = x; col < x + w; col += 1) {
+        const index = (row * size + col) * 4;
+        buffer[index] = 255;
+        buffer[index + 1] = 255;
+        buffer[index + 2] = 255;
+        buffer[index + 3] = 245;
+      }
+    }
+  };
+  fill(9, 8, 4, 16);
+  fill(13, 8, 7, 3);
+  fill(13, 15, 8, 3);
+  fill(13, 21, 7, 3);
+  fill(20, 10, 3, 5);
+  fill(21, 18, 3, 4);
+}
+
+async function ensureServer(): Promise<void> {
+  if (server) return;
+  server = await startHttpServer({
+    port: 17321,
+    cdpUrl: 'http://127.0.0.1:9222',
+    onAuthorizationRequest: handleAuthorizationRequest
+  });
+}
+
+function registerProtocol(): void {
+  if (process.defaultApp && process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('local-cdp-bridge', process.execPath, [process.argv[1]]);
+    return;
+  }
+  app.setAsDefaultProtocolClient('local-cdp-bridge');
+}
+
+function registerIpc(): void {
+  ipcMain.handle('bridge:get-status', () => getAppStatus());
+  ipcMain.handle('bridge:accept-terms', () => acceptTerms());
+  ipcMain.handle('bridge:launch-browser', (_event, browser: 'chrome' | 'edge') => launchDebugBrowser({ browser }));
+  ipcMain.handle('bridge:save-browser-path', (_event, browser: 'chrome' | 'edge', path: string) =>
+    saveBrowserPath(browser, path)
+  );
+  ipcMain.handle('bridge:clear-browser-path', (_event, browser: 'chrome' | 'edge') => clearBrowserPath(browser));
+  ipcMain.handle('bridge:choose-browser-path', (_event, browser: 'chrome' | 'edge') => chooseBrowserPath(browser));
+  ipcMain.handle('bridge:save-language', (_event, language: 'system' | 'en' | 'zh-CN') =>
+    saveLanguagePreference(language)
+  );
+  ipcMain.handle('bridge:open-external', (_event, url: string) => openExternal(url));
+  ipcMain.handle('bridge:approve-pending-origin', () => approvePendingOrigin());
+  ipcMain.handle('bridge:deny-pending-origin', () => denyPendingOrigin());
+  ipcMain.handle('bridge:revoke-origin', (_event, origin: string) => revokePermission(origin));
+}
+
+app.whenReady().then(async () => {
+  if (!hasSingleInstanceLock) return;
+  Menu.setApplicationMenu(null);
+  registerProtocol();
+  registerIpc();
+  await ensureServer();
+  createTray();
+  showWindow();
+});
+
+app.on('activate', showWindow);
+
+app.on('second-instance', (_event, argv) => {
+  showWindow();
+  const protocolUrl = argv.find((value) => value.startsWith('local-cdp-bridge://'));
+  if (protocolUrl) {
+    mainWindow?.webContents.send('bridge:protocol-url', protocolUrl);
+    void handleProtocolUrl(protocolUrl);
+  }
+});
+
+app.on('window-all-closed', (event: Event) => {
+  event.preventDefault();
+});
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  showWindow();
+  mainWindow?.webContents.send('bridge:protocol-url', url);
+  void handleProtocolUrl(url);
+});
+
+app.on('before-quit', async () => {
+  await server?.close().catch(() => {});
+});
+
+export async function getAppStatus() {
+  return {
+    version: APP_VERSION,
+    termsVersion: TERMS_VERSION,
+    consentAccepted: await hasCurrentConsent(),
+    serverPort: server?.port ?? null,
+    browsers: await detectBrowsers(),
+    browserPaths: await loadBrowserPathSettings(),
+    systemLocale: app.getLocale() || 'en',
+    permissions: await listPermissions(),
+    pendingAuthorization
+  };
+}
+
+export async function acceptTerms() {
+  return acceptConsent(APP_VERSION);
+}
+
+export async function launchDebugBrowser(options: {
+  browser: 'chrome' | 'edge';
+  cdpPort?: number;
+  profileDir?: string;
+  startUrl?: string;
+  browserPath?: string;
+}) {
+  if (!(await hasCurrentConsent())) {
+    throw new Error('User agreement must be accepted before launching a browser.');
+  }
+  return launchBrowser({
+    browser: options.browser,
+    cdpPort: options.cdpPort,
+    profileDir: options.profileDir,
+    browserPath: options.browserPath ?? (await loadBrowserPathSettings())[options.browser],
+    startUrl: options.startUrl ?? 'about:blank'
+  });
+}
+
+export async function openExternal(url: string) {
+  await shell.openExternal(url);
+}
+
+async function chooseBrowserPath(browser: 'chrome' | 'edge'): Promise<string | null> {
+  const options = {
+    title: `Select ${browser === 'chrome' ? 'Chrome' : 'Edge'} executable`,
+    properties: ['openFile'],
+    filters: process.platform === 'win32' ? [{ name: 'Executable', extensions: ['exe'] }] : undefined
+  } as Electron.OpenDialogOptions;
+  const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+  return result.canceled ? null : result.filePaths[0] ?? null;
+}
+
+async function handleProtocolUrl(rawUrl: string): Promise<void> {
+  const url = new URL(rawUrl);
+  const route = url.hostname || url.pathname.replace(/^\/+/, '') || 'open';
+  if (route === 'open' || route === 'status') {
+    showWindow();
+    return;
+  }
+  if (route === 'start-browser') {
+    const browser = url.searchParams.get('browser');
+    if (browser !== 'chrome' && browser !== 'edge') throw new Error('browser must be chrome or edge');
+    await launchDebugBrowser({
+      browser,
+      cdpPort: numberParam(url, 'cdpPort'),
+      profileDir: url.searchParams.get('profileDir') ?? undefined,
+      startUrl: url.searchParams.get('startUrl') ?? 'about:blank'
+    });
+    return;
+  }
+  if (route === 'connect') {
+    const origin = url.searchParams.get('origin');
+    if (origin) await requestAuthorization({ origin, allowedOrigins: [origin] });
+    showWindow();
+  }
+}
+
+async function handleAuthorizationRequest(request: {
+  origin: string;
+  displayName?: string;
+  allowedOrigins: string[];
+  capabilities?: BridgeMethod[];
+}): Promise<void> {
+  await requestAuthorization(request);
+}
+
+async function requestAuthorization(request: {
+  origin: string;
+  displayName?: string;
+  allowedOrigins: string[];
+  capabilities?: BridgeMethod[];
+}): Promise<void> {
+  pendingAuthorization = {
+    origin: request.origin,
+    displayName: request.displayName,
+    allowedOrigins: request.allowedOrigins,
+    capabilities: request.capabilities,
+    requestedAt: new Date().toISOString()
+  };
+  showWindow();
+  mainWindow?.webContents.send('bridge:authorization-requested', pendingAuthorization);
+}
+
+async function approvePendingOrigin() {
+  if (!pendingAuthorization) return null;
+  const permission = await grantPermission({
+    origin: pendingAuthorization.origin,
+    allowedOrigins: pendingAuthorization.allowedOrigins,
+    capabilities: pendingAuthorization.capabilities
+  });
+  pendingAuthorization = null;
+  mainWindow?.webContents.send('bridge:authorization-updated');
+  return permission;
+}
+
+function denyPendingOrigin(): void {
+  pendingAuthorization = null;
+  mainWindow?.webContents.send('bridge:authorization-updated');
+}
+
+function numberParam(url: URL, key: string): number | undefined {
+  const value = url.searchParams.get(key);
+  return value ? Number(value) : undefined;
+}

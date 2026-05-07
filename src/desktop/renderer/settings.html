@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Bridge</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="workspace">
+      <aside class="sidebar">
+        <nav class="nav-tabs" aria-label="Main navigation">
+          <a class="nav-tab" href="./home.html"><span class="nav-icon">⌂</span><span data-i18n="home">Home</span></a>
+          <a class="nav-tab active" href="./settings.html"><span class="nav-icon">⚙</span><span data-i18n="settings">Settings</span></a>
+          <a class="nav-tab" href="./advanced.html"><span class="nav-icon">⌘</span><span data-i18n="advanced">Advanced</span></a>
+        </nav>
+      </aside>
+      <section class="content">
+        <header class="page-header compact">
+          <p class="eyebrow" data-i18n="settingsEyebrow">Settings</p>
+          <h1 data-i18n="browserPaths">Browser paths</h1>
+          <p data-i18n="pathHint">Leave a path empty to use automatic detection.</p>
+        </header>
+        <div class="settings-list">
+          <article class="settings-row">
+            <img class="browser-logo small" src="./assets/chrome.svg" alt="" />
+            <div class="settings-copy">
+              <h2 data-i18n="chromeExecutable">Chrome executable</h2>
+              <p id="chromeDetectedPath">Not detected</p>
+              <input id="chromePath" placeholder="Auto detect" data-i18n-placeholder="autoDetect" />
+            </div>
+            <div class="settings-actions">
+              <button id="chooseChrome" type="button" data-i18n="browse">Browse</button>
+              <button id="saveChrome" type="button" data-i18n="save">Save</button>
+              <button id="clearChrome" type="button" data-i18n="auto">Auto</button>
+            </div>
+          </article>
+          <article class="settings-row">
+            <img class="browser-logo small" src="./assets/edge.svg" alt="" />
+            <div class="settings-copy">
+              <h2 data-i18n="edgeExecutable">Edge executable</h2>
+              <p id="edgeDetectedPath">Not detected</p>
+              <input id="edgePath" placeholder="Auto detect" data-i18n-placeholder="autoDetect" />
+            </div>
+            <div class="settings-actions">
+              <button id="chooseEdge" type="button" data-i18n="browse">Browse</button>
+              <button id="saveEdge" type="button" data-i18n="save">Save</button>
+              <button id="clearEdge" type="button" data-i18n="auto">Auto</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script src="./shared.js"></script>
+    <script src="./settings.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Bridge</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="home-page">
+    <main class="workspace">
+      <aside class="sidebar">
+        <nav class="nav-tabs" aria-label="Main navigation">
+          <a class="nav-tab active" href="./home.html"><span class="nav-icon">⌂</span><span data-i18n="home">Home</span></a>
+          <a class="nav-tab" href="./settings.html"><span class="nav-icon">⚙</span><span data-i18n="settings">Settings</span></a>
+          <a class="nav-tab" href="./advanced.html"><span class="nav-icon">⌘</span><span data-i18n="advanced">Advanced</span></a>
+        </nav>
+      </aside>
+      <section class="content">
+        <div id="statusBadge" class="home-status" data-state="ready" data-i18n="ready">Ready</div>
+        <header class="page-header">
+          <p class="eyebrow" data-i18n="browserAutomation">Browser automation</p>
+          <h1 data-i18n="startDebugBrowser">Start a debugging browser</h1>
+          <p id="browserStatus" data-i18n="homeIntro">Choose a browser to open a dedicated automation profile.</p>
+        </header>
+        <div class="launch-grid">
+          <article class="launch-card">
+            <img class="browser-logo" src="./assets/chrome.svg" alt="" />
+            <div class="launch-card-body">
+              <h2>Chrome</h2>
+              <p id="chromeHomePath" data-i18n="chromeDesc">Open Chrome with local debugging enabled.</p>
+            </div>
+            <button id="launchChrome" class="primary-button" type="button" data-i18n="launch">Launch</button>
+          </article>
+          <article class="launch-card">
+            <img class="browser-logo" src="./assets/edge.svg" alt="" />
+            <div class="launch-card-body">
+              <h2>Edge</h2>
+              <p id="edgeHomePath" data-i18n="edgeDesc">Open Edge with local debugging enabled.</p>
+            </div>
+            <button id="launchEdge" class="primary-button" type="button" data-i18n="launch">Launch</button>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script src="./shared.js"></script>
+    <script src="./home.js"></script>
+  </body>
+</html>

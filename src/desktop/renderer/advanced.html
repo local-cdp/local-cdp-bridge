@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Bridge</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="workspace">
+      <aside class="sidebar">
+        <nav class="nav-tabs" aria-label="Main navigation">
+          <a class="nav-tab" href="./home.html"><span class="nav-icon">⌂</span><span data-i18n="home">Home</span></a>
+          <a class="nav-tab" href="./settings.html"><span class="nav-icon">⚙</span><span data-i18n="settings">Settings</span></a>
+          <a class="nav-tab active" href="./advanced.html"><span class="nav-icon">⌘</span><span data-i18n="advanced">Advanced</span></a>
+        </nav>
+      </aside>
+      <section class="content">
+        <header class="page-header compact">
+          <p class="eyebrow" data-i18n="advancedEyebrow">Advanced</p>
+          <h1 data-i18n="bridgeDetails">Bridge details</h1>
+          <p data-i18n="advancedHint">Technical details for web integrations and permissions.</p>
+        </header>
+        <div class="advanced-grid">
+          <section class="detail-panel">
+            <h2 data-i18n="language">Language</h2>
+            <p data-i18n="languageHint">Choose the display language for Browser Bridge.</p>
+            <select id="languageSelect" class="language-select">
+              <option value="system" data-i18n="systemLanguage">System default</option>
+              <option value="en" data-i18n="english">English</option>
+              <option value="zh-CN" data-i18n="chinese">简体中文</option>
+            </select>
+          </section>
+          <section class="detail-panel">
+            <h2 data-i18n="localBridge">Local bridge</h2>
+            <dl class="facts">
+              <div><dt data-i18n="localEndpoint">Local endpoint</dt><dd id="localEndpoint">-</dd></div>
+              <div><dt data-i18n="urlScheme">URL scheme</dt><dd><code>local-cdp-bridge://</code></dd></div>
+              <div><dt data-i18n="lastProtocolUrl">Last protocol URL</dt><dd id="protocolUrl" data-i18n="none">None</dd></div>
+            </dl>
+          </section>
+          <section class="detail-panel">
+            <h2 data-i18n="authorizedOrigins">Authorized origins</h2>
+            <p data-i18n="authorizedOriginsHint">New sites appear here only after they request access and you approve them in Browser Bridge.</p>
+            <ul id="originList" class="origin-list"></ul>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="./shared.js"></script>
+    <script src="./advanced.js"></script>
+  </body>
+</html>

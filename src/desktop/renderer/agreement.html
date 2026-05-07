@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Bridge</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="agreement-screen">
+      <aside class="welcome-pane">
+        <div class="app-mark">LC</div>
+        <div>
+          <h1>Browser Bridge</h1>
+          <p data-i18n="welcomeText">Connect trusted web tools to a local browser you control.</p>
+        </div>
+      </aside>
+      <section class="agreement-pane">
+        <div>
+          <p class="eyebrow" data-i18n="beforeContinue">Before you continue</p>
+          <h2 data-i18n="userAgreement">User Agreement</h2>
+        </div>
+        <div class="agreement-text">
+          <p data-i18n="agreementText1">
+            This app can launch Chrome or Edge in debugging mode and allow authorized web
+            applications to request browser actions.
+          </p>
+          <p data-i18n="agreementText2">
+            It does not bypass logins, verification, or site security controls. You can disconnect,
+            revoke access, or quit this app at any time.
+          </p>
+        </div>
+        <button id="acceptTerms" class="primary-action" type="button" data-i18n="acceptContinue">Accept and Continue</button>
+      </section>
+    </main>
+    <script src="./shared.js"></script>
+    <script src="./agreement.js"></script>
+  </body>
+</html>
