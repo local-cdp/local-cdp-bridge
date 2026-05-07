@@ -4,6 +4,8 @@
 
 It is infrastructure, not a business automation product. It does not include platform-specific publishing, scraping, messaging, payment, or account workflows.
 
+![Browser Bridge desktop interface](docs/assets/screenshots-01.png)
+
 ## Goals
 
 - Provide a non-technical-user-friendly desktop app for Windows and macOS.
@@ -15,18 +17,7 @@ It is infrastructure, not a business automation product. It does not include pla
 
 ## Architecture
 
-```text
-Web app
-  |
-  | local-cdp-bridge://
-  | WebSocket / HTTP
-  v
-Local desktop bridge
-  |
-  | Chrome DevTools Protocol
-  v
-Local Chrome or Edge
-```
+![Browser Bridge architecture](docs/assets/workflow-01.png)
 
 ## Default Ports
 
@@ -90,7 +81,6 @@ It demonstrates:
 - Each web origin must be authorized locally.
 - Browser control is limited to declared allowed origins.
 - Cookies, tokens, local storage, and full page HTML are not exposed by default.
-- Risky actions require local confirmation.
 
 See [docs/security.md](docs/security.md).
 
