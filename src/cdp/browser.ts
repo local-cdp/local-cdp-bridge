@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright-core';
 import { resolve } from 'node:path';
 import type {
   FileUploadParams,
@@ -9,7 +9,9 @@ import type {
   PressParams,
   ScreenshotParams,
   ScrollParams,
-  SelectorParams
+  SelectorParams,
+  SelectorTextParams,
+  TextTargetParams
 } from '../protocol/types.js';
 
 export class CdpBrowser {
@@ -69,28 +71,93 @@ export class CdpBrowser {
   }
 
   async text(params: SelectorParams): Promise<{ text: string }> {
-    const locator = this.pageById(params.pageId).locator(params.selector).first();
+    const locator = this.selectorLocator(params);
     return { text: await locator.innerText({ timeout: params.timeoutMs ?? 5000 }) };
   }
 
+  async waitText(params: TextTargetParams): Promise<{ found: true }> {
+    const locator = this.pageById(params.pageId).getByText(params.text, { exact: params.exact ?? false }).first();
+    await locator.waitFor({ state: 'visible', timeout: params.timeoutMs ?? 5000 });
+    return { found: true };
+  }
+
+  async waitSelector(params: SelectorParams): Promise<{ found: true }> {
+    await this.selectorLocator(params).waitFor({ state: 'attached', timeout: params.timeoutMs ?? 5000 });
+    return { found: true };
+  }
+
   async click(params: SelectorParams): Promise<{ clicked: true }> {
-    const locator = this.pageById(params.pageId).locator(params.selector).first();
+    return this.clickLocator(this.selectorLocator(params), params.timeoutMs);
+  }
+
+  async clickText(params: TextTargetParams): Promise<{ clicked: true }> {
+    const locator = this.pageById(params.pageId).getByText(params.text, { exact: params.exact ?? false }).first();
+    return this.clickLocator(locator, params.timeoutMs);
+  }
+
+  async clickSelectorText(params: SelectorTextParams): Promise<{ clicked: true }> {
+    const locator = this.selectorTextLocator(params);
+    return this.clickLocator(locator, params.timeoutMs);
+  }
+
+  async scrollIntoView(params: SelectorParams): Promise<{ scrolled: true }> {
     const timeout = params.timeoutMs ?? 5000;
+    const locator = this.selectorLocator(params);
+    await locator.waitFor({ state: 'attached', timeout });
+    await locator.evaluate((element) => {
+      element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    }, undefined, { timeout });
+    return { scrolled: true };
+  }
+
+  async hover(params: SelectorParams): Promise<{ hovered: true }> {
+    const timeout = params.timeoutMs ?? 5000;
+    const locator = this.selectorLocator(params);
+    await locator.waitFor({ state: 'attached', timeout });
+    await locator.scrollIntoViewIfNeeded({ timeout }).catch(() => {});
+    await locator.hover({ timeout }).catch(async () => {
+      const box = await locator.boundingBox({ timeout });
+      if (!box) throw new Error('Element has no hoverable bounding box.');
+      await locator.page().mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+    });
+    return { hovered: true };
+  }
+
+  private selectorTextLocator(params: SelectorTextParams): Locator {
+    const locator = this.pageById(params.pageId)
+      .locator(params.selector)
+      .filter({ hasText: params.exact ? new RegExp(`^${escapeRegExp(params.text)}$`) : params.text });
+    if (params.last) return locator.last();
+    return locator.nth(params.nth ?? 0);
+  }
+
+  private async clickLocator(locator: Locator, timeoutMs?: number): Promise<{ clicked: true }> {
+    const timeout = timeoutMs ?? 5000;
     await locator.waitFor({ state: 'attached', timeout });
     await locator.scrollIntoViewIfNeeded({ timeout }).catch(() => {});
     await locator.click({ timeout }).catch(async () => {
       await locator.click({ timeout, force: true }).catch(async () => {
-        await locator.evaluate((element) => {
-          if (element instanceof HTMLElement) element.click();
-        }, undefined, { timeout });
+        await locator.boundingBox({ timeout }).then(async (box) => {
+          if (!box) throw new Error('Element has no clickable bounding box.');
+          await locator.page().mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        }).catch(async () => {
+          await locator.evaluate((element) => {
+            if (element instanceof HTMLElement) element.click();
+          }, undefined, { timeout });
+        });
       });
     });
     return { clicked: true };
   }
 
   async fill(params: FillParams): Promise<{ filled: true }> {
-    await this.pageById(params.pageId).locator(params.selector).first().fill(params.text, {
-      timeout: params.timeoutMs ?? 5000
+    const locator = this.selectorLocator(params);
+    const timeout = params.timeoutMs ?? 5000;
+    await locator.fill(params.text, { timeout }).catch(async () => {
+      const page = this.pageById(params.pageId);
+      await locator.click({ timeout, force: true });
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A').catch(() => {});
+      await page.keyboard.insertText(params.text);
     });
     return { filled: true };
   }
@@ -111,11 +178,17 @@ export class CdpBrowser {
   }
 
   async uploadFiles(params: FileUploadParams): Promise<{ uploaded: true; count: number }> {
-    const files = params.files.map((file) => resolve(file));
-    await this.pageById(params.pageId).locator(params.selector).first().setInputFiles(files, {
+    const files = params.files.map((file) => resolveLocalFilePath(file));
+    await this.selectorLocator(params).setInputFiles(files, {
       timeout: params.timeoutMs ?? 5000
     });
     return { uploaded: true, count: files.length };
+  }
+
+  private selectorLocator(params: SelectorParams): Locator {
+    const locator = this.pageById(params.pageId).locator(params.selector);
+    if (params.last) return locator.last();
+    return locator.nth(params.nth ?? 0);
   }
 
   context(): BrowserContext {
@@ -159,4 +232,19 @@ export class CdpBrowser {
     while (this.pageIds.has(`page_${index}`)) index += 1;
     return `page_${index}`;
   }
+}
+
+function resolveLocalFilePath(file: string): string {
+  const trimmed = file.trim();
+  const windowsDrive = trimmed.match(/^([a-zA-Z]):[\\/](.*)$/);
+  if (process.platform === 'linux' && windowsDrive) {
+    const drive = windowsDrive[1].toLowerCase();
+    const rest = windowsDrive[2].replace(/\\/g, '/');
+    return `/mnt/${drive}/${rest}`;
+  }
+  return resolve(trimmed);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

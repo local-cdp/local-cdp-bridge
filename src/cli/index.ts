@@ -11,7 +11,8 @@ async function main(): Promise<void> {
   const server = await startHttpServer({
     port: args.port,
     cdpUrl: args.cdpUrl,
-    requireConsent: !args.noConsentCheck
+    requireConsent: !args.noConsentCheck,
+    requireAuthorization: !args.noAuthorizationCheck
   });
 
   console.log('local-cdp-bridge');
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
   console.log(`Session: ws://127.0.0.1:${server.port}/session`);
   console.log(`CDP: ${args.cdpUrl ?? 'not configured'}`);
   console.log(`Consent: ${consent ? 'accepted' : 'required'}`);
+  console.log(`Authorization: ${args.noAuthorizationCheck ? 'disabled' : 'required'}`);
   console.log(`Browsers: ${browsers.map((item) => item.browser).join(', ') || 'none detected'}`);
   console.log('');
   console.log('Press Ctrl+C to stop.');
@@ -34,7 +36,8 @@ function parseArgs(argv: string[]) {
     port: 17321,
     cdpUrl: undefined as string | undefined,
     acceptTermsForTest: false,
-    noConsentCheck: false
+    noConsentCheck: false,
+    noAuthorizationCheck: false
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -42,6 +45,7 @@ function parseArgs(argv: string[]) {
     else if (arg === '--cdp-url') args.cdpUrl = argv[++index];
     else if (arg === '--accept-terms-for-test') args.acceptTermsForTest = true;
     else if (arg === '--no-consent-check') args.noConsentCheck = true;
+    else if (arg === '--no-authorization-check') args.noAuthorizationCheck = true;
   }
   return args;
 }

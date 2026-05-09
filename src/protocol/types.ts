@@ -9,7 +9,13 @@ export type BridgeMethod =
   | 'pages.reload'
   | 'pages.screenshot'
   | 'dom.text'
+  | 'dom.waitText'
+  | 'dom.waitSelector'
   | 'dom.click'
+  | 'dom.clickText'
+  | 'dom.clickSelectorText'
+  | 'dom.scrollIntoView'
+  | 'dom.hover'
   | 'dom.fill'
   | 'dom.press'
   | 'dom.scroll'
@@ -88,11 +94,24 @@ export interface PageTargetParams {
 
 export interface SelectorParams extends PageTargetParams {
   selector: string;
+  nth?: number;
+  last?: boolean;
   timeoutMs?: number;
 }
 
 export interface FillParams extends SelectorParams {
   text: string;
+}
+
+export interface TextTargetParams extends PageTargetParams {
+  text: string;
+  exact?: boolean;
+  timeoutMs?: number;
+}
+
+export interface SelectorTextParams extends SelectorParams {
+  text: string;
+  exact?: boolean;
 }
 
 export interface PressParams extends PageTargetParams {

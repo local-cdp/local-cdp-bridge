@@ -14,6 +14,30 @@ It is infrastructure, not a business automation product. It does not include pla
 - Require user consent before any automation can run.
 - Require explicit local authorization for web origins.
 - Provide generic browser actions such as open page, click, fill, upload, read visible text, and screenshot.
+- Keep platform-specific workflows out of this project. The bridge exposes generic browser primitives only; business flows such as Xiaohongshu publishing, WeChat official account drafts, Douyin publishing, collection selection, original declarations, and AI declarations must live in the WebApp/RPA template layer.
+
+## Layering Rule
+
+`local-cdp-bridge` is a generic browser control bridge. It must not contain platform business functions such as `publishToXhs`, `selectXhsCollection`, `enableXhsOriginal`, `publishToDouyin`, or `publishToWxmp`.
+
+When a workflow needs a new capability, add only reusable primitives, for example:
+
+- wait for selector
+- click selector
+- click visible text
+- click an item inside a selector collection by text
+- fill editable fields
+- upload local file paths
+- scroll, press key, screenshot
+
+Platform flows must be composed outside the bridge, for example in a WebApp template:
+
+```ts
+[
+  click(".collection-plugin-button"),
+  clickSelectorText(".collection-plugin-popover .item", collectionName),
+]
+```
 
 ## Architecture
 

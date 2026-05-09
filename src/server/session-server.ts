@@ -78,7 +78,13 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
               'pages.reload',
               'pages.screenshot',
               'dom.text',
+              'dom.waitText',
+              'dom.waitSelector',
               'dom.click',
+              'dom.clickText',
+              'dom.clickSelectorText',
+              'dom.scrollIntoView',
+              'dom.hover',
               'dom.fill',
               'dom.press',
               'dom.scroll',
@@ -129,8 +135,20 @@ async function dispatch(cdp: CdpBrowser, command: BridgeCommand, policy: Session
       return cdp.screenshot(command.params as never);
     case 'dom.text':
       return cdp.text(command.params as never);
+    case 'dom.waitText':
+      return cdp.waitText(command.params as never);
+    case 'dom.waitSelector':
+      return cdp.waitSelector(command.params as never);
     case 'dom.click':
       return cdp.click(command.params as never);
+    case 'dom.clickText':
+      return cdp.clickText(command.params as never);
+    case 'dom.clickSelectorText':
+      return cdp.clickSelectorText(command.params as never);
+    case 'dom.scrollIntoView':
+      return cdp.scrollIntoView(command.params as never);
+    case 'dom.hover':
+      return cdp.hover(command.params as never);
     case 'dom.fill':
       return cdp.fill(command.params as never);
     case 'dom.press':
