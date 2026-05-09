@@ -1,6 +1,7 @@
 const I18N = {
   en: {
     ready: 'Ready',
+    serviceUnavailable: 'Service unavailable',
     home: 'Home',
     settings: 'Settings',
     advanced: 'Advanced',
@@ -60,6 +61,7 @@ const I18N = {
   },
   'zh-CN': {
     ready: '就绪',
+    serviceUnavailable: '服务未启动',
     home: '首页',
     settings: '设置',
     advanced: '高级',
@@ -135,8 +137,8 @@ async function requireAgreement() {
     return null;
   }
   if (badge) {
-    badge.textContent = t('ready');
-    badge.dataset.state = 'ready';
+    badge.textContent = status.serverPort ? t('ready') : t('serviceUnavailable');
+    badge.dataset.state = status.serverPort ? 'ready' : 'warning';
   }
   return status;
 }

@@ -10,6 +10,7 @@ import type { BridgeMethod } from '../protocol/types.js';
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let server: BridgeHttpServer | null = null;
+let externalServerPort: number | null = null;
 let pendingAuthorization:
   | {
       origin: string;
@@ -128,12 +129,29 @@ function drawTrayGlyph(buffer: Buffer, size: number): void {
 }
 
 async function ensureServer(): Promise<void> {
-  if (server) return;
-  server = await startHttpServer({
-    port: 17321,
-    cdpUrl: 'http://127.0.0.1:9222',
-    onAuthorizationRequest: handleAuthorizationRequest
-  });
+  if (server || externalServerPort) return;
+  const candidatePorts = [17321, 17322, 17323, 17324, 17329];
+  let lastError: unknown = null;
+  for (const port of candidatePorts) {
+    try {
+      server = await startHttpServer({
+        port,
+        cdpUrl: 'http://127.0.0.1:9222',
+        onAuthorizationRequest: handleAuthorizationRequest
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (isPortInUseError(error) && (await isExistingBridgeServer(port))) {
+        externalServerPort = port;
+        return;
+      }
+      if (!isPortInUseError(error)) {
+        throw error;
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('No available local bridge port.');
 }
 
 function registerProtocol(): void {
@@ -203,7 +221,7 @@ export async function getAppStatus() {
     version: APP_VERSION,
     termsVersion: TERMS_VERSION,
     consentAccepted: await hasCurrentConsent(),
-    serverPort: server?.port ?? null,
+    serverPort: server?.port ?? externalServerPort,
     browsers: await detectBrowsers(),
     browserPaths: await loadBrowserPathSettings(),
     systemLocale: app.getLocale() || 'en',
@@ -320,4 +338,19 @@ function denyPendingOrigin(): void {
 function numberParam(url: URL, key: string): number | undefined {
   const value = url.searchParams.get(key);
   return value ? Number(value) : undefined;
+}
+
+function isPortInUseError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EADDRINUSE';
+}
+
+async function isExistingBridgeServer(port: number): Promise<boolean> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/health`, { cache: 'no-store' });
+    if (!response.ok) return false;
+    const payload = (await response.json()) as { ok?: unknown; name?: unknown };
+    return payload.ok === true && payload.name === 'local-cdp-bridge';
+  } catch {
+    return false;
+  }
 }

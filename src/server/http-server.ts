@@ -65,6 +65,9 @@ export async function startHttpServer(options: StartHttpServerOptions | number =
     requireAuthorization: typeof options === 'number' ? undefined : options.requireAuthorization,
     onAuthorizationRequest: typeof options === 'number' ? undefined : options.onAuthorizationRequest
   });
+  wss.on('error', () => {
+    // The HTTP server owns listen failures. Keep ws from turning them into uncaught exceptions.
+  });
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -95,7 +98,8 @@ function corsHeaders(): Record<string, string> {
   return {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type'
+    'access-control-allow-headers': 'content-type',
+    'access-control-allow-private-network': 'true'
   };
 }
 

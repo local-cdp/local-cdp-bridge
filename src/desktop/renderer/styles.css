@@ -309,6 +309,12 @@ p {
   font-size: 13px;
 }
 
+.home-status[data-state='warning'] {
+  border-color: rgba(255, 149, 0, 0.28);
+  background: rgba(255, 247, 230, 0.9);
+  color: #a45f00;
+}
+
 .page-header {
   max-width: 720px;
   margin-bottom: 16px;

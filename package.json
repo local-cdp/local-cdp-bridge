@@ -1,6 +1,6 @@
 {
   "name": "@local-cdp/bridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Local desktop bridge for connecting web apps to a user-authorized Chrome or Edge CDP session.",
   "license": "Apache-2.0",
@@ -61,7 +61,9 @@
     "protocols": [
       {
         "name": "local-cdp-bridge",
-        "schemes": ["local-cdp-bridge"]
+        "schemes": [
+          "local-cdp-bridge"
+        ]
       }
     ],
     "win": {
@@ -70,11 +72,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "msi",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -88,7 +94,9 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "category": "public.app-category.utilities"
