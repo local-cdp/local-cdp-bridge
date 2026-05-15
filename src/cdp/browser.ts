@@ -2,10 +2,12 @@ import { chromium, type Browser, type BrowserContext, type Locator, type Page } 
 import { resolve } from 'node:path';
 import type {
   FileUploadParams,
+  FileUploadDataParams,
   FillParams,
   PageOpenParams,
   PageRef,
   PageTargetParams,
+  PageUrlTargetParams,
   PressParams,
   ScreenshotParams,
   ScrollParams,
@@ -62,6 +64,19 @@ export class CdpBrowser {
     const page = this.pageById(params.pageId);
     await page.bringToFront();
     return this.refForPage(page);
+  }
+
+  async focusPageByUrl(params: PageUrlTargetParams): Promise<PageRef> {
+    const expiresAt = Date.now() + (params.timeoutMs ?? 10000);
+    while (Date.now() <= expiresAt) {
+      const page = this.pages().find((item) => item.url().includes(params.urlIncludes));
+      if (page) {
+        await page.bringToFront();
+        return this.refForPage(page);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`No page URL contains: ${params.urlIncludes}`);
   }
 
   async reloadPage(params: PageTargetParams): Promise<PageRef> {
@@ -185,6 +200,21 @@ export class CdpBrowser {
     return { uploaded: true, count: files.length };
   }
 
+  async uploadFileData(params: FileUploadDataParams): Promise<{ uploaded: true; count: number }> {
+    const files = params.files.map((file) => {
+      const { mimeType, buffer } = parseDataUrl(file.dataUrl);
+      return {
+        name: sanitizeFileName(file.name),
+        mimeType: file.type || mimeType || 'application/octet-stream',
+        buffer
+      };
+    });
+    await this.selectorLocator(params).setInputFiles(files, {
+      timeout: params.timeoutMs ?? 5000
+    });
+    return { uploaded: true, count: files.length };
+  }
+
   private selectorLocator(params: SelectorParams): Locator {
     const locator = this.pageById(params.pageId).locator(params.selector);
     if (params.last) return locator.last();
@@ -243,6 +273,23 @@ function resolveLocalFilePath(file: string): string {
     return `/mnt/${drive}/${rest}`;
   }
   return resolve(trimmed);
+}
+
+function parseDataUrl(dataUrl: string): { mimeType: string; buffer: Buffer } {
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+  if (!match) throw new Error('Invalid data URL for file upload.');
+  const mimeType = match[1] || 'application/octet-stream';
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] ?? '';
+  return {
+    mimeType,
+    buffer: isBase64 ? Buffer.from(payload, 'base64') : Buffer.from(decodeURIComponent(payload), 'utf8')
+  };
+}
+
+function sanitizeFileName(name: string): string {
+  const trimmed = name.trim().replace(/[\\/]/g, '_');
+  return trimmed || 'upload.bin';
 }
 
 function escapeRegExp(value: string): string {

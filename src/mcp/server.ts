@@ -5,6 +5,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { assertAllowedUrl, type SessionPolicy } from '../security/policy.js';
 
 type JsonRpcId = string | number | null;
+const BRIDGE_VERSION = '0.1.3';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -156,7 +157,7 @@ async function handleRequest(request: JsonRpcRequest): Promise<unknown> {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name: 'local-cdp-bridge',
-          version: '0.1.0'
+          version: BRIDGE_VERSION
         },
         capabilities: {
           tools: {}

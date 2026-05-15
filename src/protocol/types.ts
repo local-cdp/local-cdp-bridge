@@ -3,9 +3,12 @@ export type BrowserName = 'chrome' | 'edge';
 export type BridgeMethod =
   | 'browser.status'
   | 'browser.launch'
+  | 'browser.launchDefault'
+  | 'browser.ensureReady'
   | 'pages.list'
   | 'pages.open'
   | 'pages.focus'
+  | 'pages.focusByUrl'
   | 'pages.reload'
   | 'pages.screenshot'
   | 'dom.text'
@@ -19,7 +22,8 @@ export type BridgeMethod =
   | 'dom.fill'
   | 'dom.press'
   | 'dom.scroll'
-  | 'files.upload';
+  | 'files.upload'
+  | 'files.uploadData';
 
 export interface BridgeCommand<TParams = unknown> {
   id: string;
@@ -81,6 +85,21 @@ export interface BrowserStatusResult {
   pages: PageRef[];
 }
 
+export interface BrowserEnsureReadyParams {
+  startUrl?: string;
+  cdpPort?: number;
+  profileDir?: string;
+  browserPath?: string;
+  timeoutMs?: number;
+}
+
+export interface BrowserEnsureReadyResult extends BrowserStatusResult {
+  launched: boolean;
+  browser?: BrowserName;
+  cdpUrl?: string;
+  pid?: number;
+}
+
 export interface PageOpenParams {
   url: string;
   reuse?: {
@@ -90,6 +109,11 @@ export interface PageOpenParams {
 
 export interface PageTargetParams {
   pageId: string;
+}
+
+export interface PageUrlTargetParams {
+  urlIncludes: string;
+  timeoutMs?: number;
 }
 
 export interface SelectorParams extends PageTargetParams {
@@ -129,4 +153,15 @@ export interface ScreenshotParams extends PageTargetParams {
 
 export interface FileUploadParams extends SelectorParams {
   files: string[];
+}
+
+export interface BrowserMediaFile {
+  name: string;
+  type: string;
+  size?: number;
+  dataUrl: string;
+}
+
+export interface FileUploadDataParams extends SelectorParams {
+  files: BrowserMediaFile[];
 }

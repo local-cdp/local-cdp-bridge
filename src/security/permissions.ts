@@ -17,9 +17,12 @@ export interface PermissionsFile {
 
 const DEFAULT_CAPABILITIES: BridgeMethod[] = [
   'browser.status',
+  'browser.launchDefault',
+  'browser.ensureReady',
   'pages.list',
   'pages.open',
   'pages.focus',
+  'pages.focusByUrl',
   'pages.reload',
   'pages.screenshot',
   'dom.text',
@@ -27,7 +30,8 @@ const DEFAULT_CAPABILITIES: BridgeMethod[] = [
   'dom.fill',
   'dom.press',
   'dom.scroll',
-  'files.upload'
+  'files.upload',
+  'files.uploadData'
 ];
 
 export function permissionsFile(): string {

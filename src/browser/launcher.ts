@@ -69,8 +69,22 @@ export async function launchBrowser(options: BrowserLaunchOptions): Promise<{ cd
     { detached: true, stdio: 'ignore' }
   );
   child.unref();
+  await waitForCdpReady(cdpPort, 10000);
 
   return { cdpUrl: `http://127.0.0.1:${cdpPort}`, pid: child.pid };
+}
+
+export async function launchDefaultBrowser(
+  options: Omit<BrowserLaunchOptions, 'browser'> = {}
+): Promise<{ browser: BrowserName; cdpUrl: string; pid?: number }> {
+  const [candidate] = await detectBrowsers();
+  if (!candidate) throw new Error('Unable to find Chrome or Edge. Install a supported browser or set a custom browser path.');
+  const result = await launchBrowser({
+    ...options,
+    browser: candidate.browser,
+    browserPath: options.browserPath ?? candidate.path
+  });
+  return { browser: candidate.browser, ...result };
 }
 
 async function openCdpPage(port: number, url: string): Promise<void> {
@@ -103,6 +117,15 @@ async function isCdpReady(port: number): Promise<boolean> {
     });
     req.on('error', () => resolve(false));
   });
+}
+
+async function waitForCdpReady(port: number, timeoutMs: number): Promise<void> {
+  const expiresAt = Date.now() + timeoutMs;
+  while (Date.now() < expiresAt) {
+    if (await isCdpReady(port)) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Browser started, but CDP did not become ready on port ${port}.`);
 }
 
 async function exists(path: string): Promise<boolean> {

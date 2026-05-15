@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, shell, Tray } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { startHttpServer, type BridgeHttpServer } from '../server/http-server.js';
-import { detectBrowsers, launchBrowser } from '../browser/launcher.js';
+import { detectBrowsers, launchBrowser, launchDefaultBrowser } from '../browser/launcher.js';
 import { clearBrowserPath, loadBrowserPathSettings, saveBrowserPath, saveLanguagePreference } from '../browser/settings.js';
 import { acceptConsent, hasCurrentConsent, TERMS_VERSION } from '../security/consent.js';
 import { grantPermission, listPermissions, revokePermission } from '../security/permissions.js';
@@ -137,7 +137,8 @@ async function ensureServer(): Promise<void> {
       server = await startHttpServer({
         port,
         cdpUrl: 'http://127.0.0.1:9222',
-        onAuthorizationRequest: handleAuthorizationRequest
+        onAuthorizationRequest: handleAuthorizationRequest,
+        onLaunchDefaultBrowser: launchDefaultDebugBrowser
       });
       return;
     } catch (error) {
@@ -249,6 +250,23 @@ export async function launchDebugBrowser(options: {
     cdpPort: options.cdpPort,
     profileDir: options.profileDir,
     browserPath: options.browserPath ?? (await loadBrowserPathSettings())[options.browser],
+    startUrl: options.startUrl ?? 'about:blank'
+  });
+}
+
+export async function launchDefaultDebugBrowser(options: {
+  cdpPort?: number;
+  profileDir?: string;
+  startUrl?: string;
+  browserPath?: string;
+} = {}) {
+  if (!(await hasCurrentConsent())) {
+    throw new Error('User agreement must be accepted before launching a browser.');
+  }
+  return launchDefaultBrowser({
+    cdpPort: options.cdpPort,
+    profileDir: options.profileDir,
+    browserPath: options.browserPath,
     startUrl: options.startUrl ?? 'about:blank'
   });
 }

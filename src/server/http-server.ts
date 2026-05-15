@@ -2,7 +2,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { attachSessionServer } from './session-server.js';
 import { listPermissions, revokePermission } from '../security/permissions.js';
-import type { BridgeMethod } from '../protocol/types.js';
+import type { BridgeMethod, BrowserLaunchOptions, BrowserName } from '../protocol/types.js';
 
 export interface BridgeHttpServer {
   port: number;
@@ -20,6 +20,9 @@ export interface StartHttpServerOptions {
     allowedOrigins: string[];
     capabilities?: BridgeMethod[];
   }) => void | Promise<void>;
+  onLaunchDefaultBrowser?: (
+    options?: Omit<BrowserLaunchOptions, 'browser'>
+  ) => Promise<{ browser: BrowserName; cdpUrl: string; pid?: number }>;
 }
 
 export async function startHttpServer(options: StartHttpServerOptions | number = 17321): Promise<BridgeHttpServer> {
@@ -63,7 +66,8 @@ export async function startHttpServer(options: StartHttpServerOptions | number =
     cdpUrl: typeof options === 'number' ? undefined : options.cdpUrl,
     requireConsent: typeof options === 'number' ? undefined : options.requireConsent,
     requireAuthorization: typeof options === 'number' ? undefined : options.requireAuthorization,
-    onAuthorizationRequest: typeof options === 'number' ? undefined : options.onAuthorizationRequest
+    onAuthorizationRequest: typeof options === 'number' ? undefined : options.onAuthorizationRequest,
+    onLaunchDefaultBrowser: typeof options === 'number' ? undefined : options.onLaunchDefaultBrowser
   });
   wss.on('error', () => {
     // The HTTP server owns listen failures. Keep ws from turning them into uncaught exceptions.

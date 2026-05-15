@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { detectBrowsers } from '../browser/launcher.js';
+import { detectBrowsers, launchDefaultBrowser } from '../browser/launcher.js';
 import { acceptConsent, hasCurrentConsent } from '../security/consent.js';
 import { startHttpServer } from '../server/http-server.js';
 
@@ -12,7 +12,8 @@ async function main(): Promise<void> {
     port: args.port,
     cdpUrl: args.cdpUrl,
     requireConsent: !args.noConsentCheck,
-    requireAuthorization: !args.noAuthorizationCheck
+    requireAuthorization: !args.noAuthorizationCheck,
+    onLaunchDefaultBrowser: (options) => launchDefaultBrowser(options)
   });
 
   console.log('local-cdp-bridge');
