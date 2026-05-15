@@ -16,7 +16,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { getPermission } from '../security/permissions.js';
 import { assertAllowedUrl, assertCapability, type SessionPolicy } from '../security/policy.js';
 
-const BRIDGE_VERSION = '0.1.3';
+const BRIDGE_VERSION = '0.1.4';
 
 export interface SessionServerOptions {
   server: http.Server;
@@ -40,7 +40,10 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
   let connectPromise: Promise<void> | null = null;
 
   async function ensureCdp(): Promise<CdpBrowser> {
-    if (cdp.isConnected()) return cdp;
+    if (cdp.isConnected()) {
+      await cdp.ensureUsable();
+      return cdp;
+    }
     if (!options.cdpUrl) throw new Error('CDP URL is not configured.');
     connectPromise ??= cdp.connect(options.cdpUrl);
     try {

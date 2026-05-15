@@ -18,15 +18,23 @@ import type {
 
 export class CdpBrowser {
   private browser: Browser | null = null;
+  private cdpUrl = '';
   private pageIds = new Map<string, Page>();
 
   async connect(cdpUrl: string): Promise<void> {
+    this.cdpUrl = cdpUrl;
     this.browser = await chromium.connectOverCDP(cdpUrl, { timeout: 10000 });
+    await this.ensureDefaultContext();
     this.refreshPageIds();
   }
 
   isConnected(): boolean {
     return this.browser !== null && this.browser.isConnected();
+  }
+
+  async ensureUsable(): Promise<void> {
+    await this.ensureDefaultContext();
+    this.refreshPageIds();
   }
 
   pages(): Page[] {
@@ -54,7 +62,7 @@ export class CdpBrowser {
     const reusable = params.reuse?.urlIncludes
       ? this.pages().find((page) => page.url().includes(params.reuse?.urlIncludes ?? ''))
       : null;
-    const page = reusable ?? (await this.context().newPage());
+    const page = reusable ?? (await (await this.context()).newPage());
     await page.goto(params.url, { waitUntil: 'domcontentloaded', timeout: 10000 });
     await page.bringToFront();
     return this.refForPage(page);
@@ -221,11 +229,9 @@ export class CdpBrowser {
     return locator.nth(params.nth ?? 0);
   }
 
-  context(): BrowserContext {
+  async context(): Promise<BrowserContext> {
     if (!this.browser) throw new Error('Browser is not connected.');
-    const existing = this.browser.contexts()[0];
-    if (!existing) throw new Error('Connected browser has no default context.');
-    return existing;
+    return this.ensureDefaultContext();
   }
 
   pageById(pageId: string): Page {
@@ -262,6 +268,41 @@ export class CdpBrowser {
     while (this.pageIds.has(`page_${index}`)) index += 1;
     return `page_${index}`;
   }
+
+  private async ensureDefaultContext(): Promise<BrowserContext> {
+    if (!this.browser) throw new Error('Browser is not connected.');
+    const existing = this.browser.contexts()[0];
+    if (existing) return existing;
+
+    if (!this.cdpUrl) throw new Error('Connected browser has no default context.');
+    await openCdpPage(this.cdpUrl, 'about:blank');
+    const created = await this.waitForDefaultContext(2000);
+    if (created) return created;
+
+    this.browser = await chromium.connectOverCDP(this.cdpUrl, { timeout: 10000 });
+    const reconnected = await this.waitForDefaultContext(2000);
+    if (reconnected) return reconnected;
+    throw new Error('Connected browser has no default context.');
+  }
+
+  private async waitForDefaultContext(timeoutMs: number): Promise<BrowserContext | null> {
+    if (!this.browser) return null;
+    const expiresAt = Date.now() + timeoutMs;
+    while (Date.now() <= expiresAt) {
+      const context = this.browser.contexts()[0];
+      if (context) return context;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return null;
+  }
+}
+
+async function openCdpPage(cdpUrl: string, url: string): Promise<void> {
+  const endpoint = new URL(cdpUrl);
+  endpoint.pathname = '/json/new';
+  endpoint.search = encodeURIComponent(url);
+  const response = await fetch(endpoint, { method: 'PUT' });
+  response.body?.cancel().catch(() => {});
 }
 
 function resolveLocalFilePath(file: string): string {
