@@ -1,6 +1,6 @@
 {
   "name": "@local-cdp/bridge",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": false,
   "description": "Local desktop bridge for connecting web apps to a user-authorized Chrome or Edge CDP session.",
   "license": "Apache-2.0",

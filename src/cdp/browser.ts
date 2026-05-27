@@ -1,19 +1,24 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright-core';
 import { resolve } from 'node:path';
 import type {
+  AttributeParams,
   FileUploadParams,
   FileUploadDataParams,
   FillParams,
+  NetworkFetchParams,
   PageOpenParams,
   PageRef,
   PageTargetParams,
   PageUrlTargetParams,
+  ListParams,
   PressParams,
   ScreenshotParams,
   ScrollParams,
+  ScrollStateParams,
   SelectorParams,
   SelectorTextParams,
-  TextTargetParams
+  TextTargetParams,
+  WaitResponseParams
 } from '../protocol/types.js';
 
 export class CdpBrowser {
@@ -58,6 +63,15 @@ export class CdpBrowser {
     };
   }
 
+  async closeBrowser(): Promise<{ closed: true }> {
+    if (!this.browser) return { closed: true };
+    const browser = this.browser;
+    this.browser = null;
+    this.pageIds.clear();
+    await browser.close();
+    return { closed: true };
+  }
+
   async openPage(params: PageOpenParams): Promise<PageRef> {
     const reusable = params.reuse?.urlIncludes
       ? this.pages().find((page) => page.url().includes(params.reuse?.urlIncludes ?? ''))
@@ -96,6 +110,24 @@ export class CdpBrowser {
   async text(params: SelectorParams): Promise<{ text: string }> {
     const locator = this.selectorLocator(params);
     return { text: await locator.innerText({ timeout: params.timeoutMs ?? 5000 }) };
+  }
+
+  async attribute(params: AttributeParams): Promise<{ value: string | null }> {
+    const locator = this.selectorLocator(params);
+    return { value: await locator.getAttribute(params.name, { timeout: params.timeoutMs ?? 5000 }) };
+  }
+
+  async list(params: ListParams): Promise<{ items: Array<{ text: string; attributes: Record<string, string> }> }> {
+    const attributes = params.attributes ?? [];
+    const limit = Math.max(1, Math.min(params.limit ?? 500, 1000));
+    const items = await this.pageById(params.pageId).locator(params.selector).evaluateAll(
+      (elements, input) => elements.slice(0, input.limit).map((element) => ({
+        text: (element instanceof HTMLElement ? element.innerText : element.textContent || '').trim(),
+        attributes: Object.fromEntries(input.attributes.map((name) => [name, element.getAttribute(name) || '']))
+      })),
+      { attributes, limit }
+    );
+    return { items };
   }
 
   async waitText(params: TextTargetParams): Promise<{ found: true }> {
@@ -190,14 +222,66 @@ export class CdpBrowser {
     return { pressed: true };
   }
 
-  async scroll(params: ScrollParams): Promise<{ scrolled: true }> {
+  async scroll(params: ScrollParams): Promise<{ scrolled: true; atEnd?: boolean }> {
+    if (params.selector) {
+      const state = await this.pageById(params.pageId).locator(params.selector).first().evaluate((element, delta) => {
+        element.scrollBy(delta.x, delta.y);
+        return element.scrollTop + element.clientHeight >= element.scrollHeight - 2;
+      }, { x: params.deltaX ?? 0, y: params.deltaY ?? 0 });
+      return { scrolled: true, atEnd: state };
+    }
     await this.pageById(params.pageId).mouse.wheel(params.deltaX ?? 0, params.deltaY ?? 0);
     return { scrolled: true };
+  }
+
+  async scrollState(params: ScrollStateParams): Promise<{ scrollTop: number; scrollHeight: number; clientHeight: number; atEnd: boolean }> {
+    const locator = params.selector ? this.pageById(params.pageId).locator(params.selector).first() : this.pageById(params.pageId).locator('html');
+    return locator.evaluate((element) => ({
+      scrollTop: element.scrollTop,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      atEnd: element.scrollTop + element.clientHeight >= element.scrollHeight - 2
+    }));
   }
 
   async screenshot(params: ScreenshotParams): Promise<{ mimeType: 'image/png'; base64: string }> {
     const buffer = await this.pageById(params.pageId).screenshot({ fullPage: params.fullPage ?? false });
     return { mimeType: 'image/png', base64: buffer.toString('base64') };
+  }
+
+  async fetch(params: NetworkFetchParams): Promise<{ status: number; url: string; headers: Record<string, string>; text: string }> {
+    const result = await this.pageById(params.pageId).evaluate(
+      async (input) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), input.timeoutMs ?? 15000);
+        try {
+          const response = await fetch(input.url, {
+            method: input.method ?? 'GET',
+            headers: input.headers,
+            body: input.body,
+            credentials: 'include',
+            signal: controller.signal
+          });
+          const headers: Record<string, string> = {};
+          response.headers.forEach((value, key) => {
+            headers[key] = value;
+          });
+          return { status: response.status, url: response.url, headers, text: await response.text() };
+        } finally {
+          window.clearTimeout(timer);
+        }
+      },
+      params
+    );
+    return result;
+  }
+
+  async waitResponse(params: WaitResponseParams): Promise<{ status: number; url: string; headers: Record<string, string>; text: string }> {
+    const response = await this.pageById(params.pageId).waitForResponse(
+      (item) => item.url().includes(params.urlIncludes),
+      { timeout: params.timeoutMs ?? 15000 }
+    );
+    return { status: response.status(), url: response.url(), headers: response.headers(), text: await response.text() };
   }
 
   async uploadFiles(params: FileUploadParams): Promise<{ uploaded: true; count: number }> {

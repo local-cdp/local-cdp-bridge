@@ -16,7 +16,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { getPermission } from '../security/permissions.js';
 import { assertAllowedUrl, assertCapability, type SessionPolicy } from '../security/policy.js';
 
-const BRIDGE_VERSION = '0.1.4';
+const BRIDGE_VERSION = '0.1.6';
 
 export interface SessionServerOptions {
   server: http.Server;
@@ -121,6 +121,7 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
               'browser.status',
               'browser.launchDefault',
               'browser.ensureReady',
+              'browser.close',
               'pages.list',
               'pages.open',
               'pages.focus',
@@ -128,6 +129,8 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
               'pages.reload',
               'pages.screenshot',
               'dom.text',
+              'dom.attribute',
+              'dom.list',
               'dom.waitText',
               'dom.waitSelector',
               'dom.click',
@@ -138,6 +141,9 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
               'dom.fill',
               'dom.press',
               'dom.scroll',
+              'dom.scrollState',
+              'network.fetch',
+              'network.waitResponse',
               'files.upload',
               'files.uploadData'
             ]
@@ -187,6 +193,8 @@ async function dispatch(input: {
       return launchDefault(command.params as never);
     case 'browser.ensureReady':
       return ensureReady(command.params as never);
+    case 'browser.close':
+      return requireCdp(cdp).closeBrowser();
     case 'browser.status':
     case 'pages.list':
       return requireCdp(cdp).browserStatus();
@@ -205,6 +213,10 @@ async function dispatch(input: {
       return requireCdp(cdp).screenshot(command.params as never);
     case 'dom.text':
       return requireCdp(cdp).text(command.params as never);
+    case 'dom.attribute':
+      return requireCdp(cdp).attribute(command.params as never);
+    case 'dom.list':
+      return requireCdp(cdp).list(command.params as never);
     case 'dom.waitText':
       return requireCdp(cdp).waitText(command.params as never);
     case 'dom.waitSelector':
@@ -225,6 +237,15 @@ async function dispatch(input: {
       return requireCdp(cdp).press(command.params as never);
     case 'dom.scroll':
       return requireCdp(cdp).scroll(command.params as never);
+    case 'dom.scrollState':
+      return requireCdp(cdp).scrollState(command.params as never);
+    case 'network.fetch': {
+      const params = command.params as { url: string };
+      assertAllowedUrl(params.url, policy);
+      return requireCdp(cdp).fetch(command.params as never);
+    }
+    case 'network.waitResponse':
+      return requireCdp(cdp).waitResponse(command.params as never);
     case 'files.upload':
       return requireCdp(cdp).uploadFiles(command.params as never);
     case 'files.uploadData':

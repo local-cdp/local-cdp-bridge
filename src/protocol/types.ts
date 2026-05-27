@@ -5,6 +5,7 @@ export type BridgeMethod =
   | 'browser.launch'
   | 'browser.launchDefault'
   | 'browser.ensureReady'
+  | 'browser.close'
   | 'pages.list'
   | 'pages.open'
   | 'pages.focus'
@@ -12,6 +13,8 @@ export type BridgeMethod =
   | 'pages.reload'
   | 'pages.screenshot'
   | 'dom.text'
+  | 'dom.attribute'
+  | 'dom.list'
   | 'dom.waitText'
   | 'dom.waitSelector'
   | 'dom.click'
@@ -22,6 +25,9 @@ export type BridgeMethod =
   | 'dom.fill'
   | 'dom.press'
   | 'dom.scroll'
+  | 'dom.scrollState'
+  | 'network.fetch'
+  | 'network.waitResponse'
   | 'files.upload'
   | 'files.uploadData';
 
@@ -127,6 +133,15 @@ export interface FillParams extends SelectorParams {
   text: string;
 }
 
+export interface AttributeParams extends SelectorParams {
+  name: string;
+}
+
+export interface ListParams extends SelectorParams {
+  attributes?: string[];
+  limit?: number;
+}
+
 export interface TextTargetParams extends PageTargetParams {
   text: string;
   exact?: boolean;
@@ -143,12 +158,30 @@ export interface PressParams extends PageTargetParams {
 }
 
 export interface ScrollParams extends PageTargetParams {
+  selector?: string;
   deltaX?: number;
   deltaY?: number;
 }
 
+export interface ScrollStateParams extends PageTargetParams {
+  selector?: string;
+}
+
 export interface ScreenshotParams extends PageTargetParams {
   fullPage?: boolean;
+}
+
+export interface NetworkFetchParams extends PageTargetParams {
+  url: string;
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+}
+
+export interface WaitResponseParams extends PageTargetParams {
+  urlIncludes: string;
+  timeoutMs?: number;
 }
 
 export interface FileUploadParams extends SelectorParams {

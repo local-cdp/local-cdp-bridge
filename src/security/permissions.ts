@@ -19,6 +19,7 @@ const DEFAULT_CAPABILITIES: BridgeMethod[] = [
   'browser.status',
   'browser.launchDefault',
   'browser.ensureReady',
+  'browser.close',
   'pages.list',
   'pages.open',
   'pages.focus',
@@ -26,10 +27,15 @@ const DEFAULT_CAPABILITIES: BridgeMethod[] = [
   'pages.reload',
   'pages.screenshot',
   'dom.text',
+  'dom.attribute',
+  'dom.list',
   'dom.click',
   'dom.fill',
   'dom.press',
   'dom.scroll',
+  'dom.scrollState',
+  'network.fetch',
+  'network.waitResponse',
   'files.upload',
   'files.uploadData'
 ];
