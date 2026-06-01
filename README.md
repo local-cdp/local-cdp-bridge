@@ -16,6 +16,12 @@ It is infrastructure, not a business automation product. It does not include pla
 - Provide generic browser actions such as open page, click, fill, upload, read visible text, and screenshot.
 - Keep platform-specific workflows out of this project. The bridge exposes generic browser primitives only; business flows such as Xiaohongshu publishing, WeChat official account drafts, Douyin publishing, collection selection, original declarations, and AI declarations must live in the WebApp/RPA template layer.
 
+## Why This Matters
+
+AI agents and web applications increasingly need to work with the user's own browser, but direct browser automation can easily blur security, consent, and product boundaries. `local-cdp-bridge` provides a reusable open-source layer for local, user-authorized browser control instead of embedding site-specific automation into every project.
+
+The bridge is designed for both ordinary web applications and local agent tools. Its HTTP/WebSocket API supports browser-side integrations, while the MCP stdio server exposes the same generic browser primitives to AI coding and automation agents. Consent gates, origin authorization, and data minimization are part of the core design so downstream tools can build on a safer default.
+
 ## Layering Rule
 
 `local-cdp-bridge` is a generic browser control bridge. It must not contain platform business functions such as `publishToXhs`, `selectXhsCollection`, `enableXhsOriginal`, `publishToDouyin`, or `publishToWxmp`.
