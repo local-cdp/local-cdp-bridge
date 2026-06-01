@@ -5,7 +5,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { assertAllowedUrl, type SessionPolicy } from '../security/policy.js';
 
 type JsonRpcId = string | number | null;
-const BRIDGE_VERSION = '0.1.4';
+const BRIDGE_VERSION = '0.1.7';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';

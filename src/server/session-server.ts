@@ -16,7 +16,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { getPermission } from '../security/permissions.js';
 import { assertAllowedUrl, assertCapability, type SessionPolicy } from '../security/policy.js';
 
-const BRIDGE_VERSION = '0.1.6';
+const BRIDGE_VERSION = '0.1.7';
 
 export interface SessionServerOptions {
   server: http.Server;
@@ -48,6 +48,7 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
     connectPromise ??= cdp.connect(options.cdpUrl);
     try {
       await connectPromise;
+      connectPromise = null;
     } catch (error) {
       connectPromise = null;
       throw error;
@@ -64,6 +65,7 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
       connectPromise = cdp.connect(launched.cdpUrl);
       try {
         await connectPromise;
+        connectPromise = null;
       } catch (error) {
         connectPromise = null;
         throw error;

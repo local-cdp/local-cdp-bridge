@@ -63,7 +63,7 @@ function showWindow(): void {
 }
 
 function createTray(): void {
-  const icon = loadAppIcon();
+  const icon = loadTrayIcon();
   tray = new Tray(icon);
   tray.setToolTip('Browser Bridge');
   tray.setContextMenu(
@@ -81,6 +81,38 @@ function createTray(): void {
 function loadAppIcon(): Electron.NativeImage {
   const icon = nativeImage.createFromPath(fileURLToPath(new URL('../../assets/icon.ico', import.meta.url)));
   return icon.isEmpty() ? createAppIcon() : icon;
+}
+
+function loadTrayIcon(): Electron.NativeImage {
+  if (process.platform !== 'darwin') return loadAppIcon();
+  const icon = createMacTemplateTrayIcon();
+  icon.setTemplateImage(true);
+  return icon;
+}
+
+function createMacTemplateTrayIcon(): Electron.NativeImage {
+  const size = 18;
+  const scaleFactor = 2;
+  const pixelSize = size * scaleFactor;
+  const buffer = Buffer.alloc(pixelSize * pixelSize * 4);
+  const fill = (x: number, y: number, w: number, h: number, alpha = 255) => {
+    for (let row = y * scaleFactor; row < (y + h) * scaleFactor; row += 1) {
+      for (let col = x * scaleFactor; col < (x + w) * scaleFactor; col += 1) {
+        const index = (row * pixelSize + col) * 4;
+        buffer[index] = 0;
+        buffer[index + 1] = 0;
+        buffer[index + 2] = 0;
+        buffer[index + 3] = alpha;
+      }
+    }
+  };
+  fill(4, 3, 3, 12);
+  fill(7, 3, 5, 2);
+  fill(7, 8, 6, 2);
+  fill(7, 13, 5, 2);
+  fill(12, 5, 2, 3);
+  fill(13, 10, 2, 3);
+  return nativeImage.createFromBitmap(buffer, { width: size, height: size, scaleFactor });
 }
 
 function createAppIcon(): Electron.NativeImage {
