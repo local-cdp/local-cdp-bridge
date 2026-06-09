@@ -16,7 +16,7 @@ import { hasCurrentConsent } from '../security/consent.js';
 import { getPermission } from '../security/permissions.js';
 import { assertAllowedUrl, assertCapability, type SessionPolicy } from '../security/policy.js';
 
-const BRIDGE_VERSION = '0.1.7';
+const BRIDGE_VERSION = '0.1.8';
 
 export interface SessionServerOptions {
   server: http.Server;
@@ -147,6 +147,7 @@ export function attachSessionServer(options: SessionServerOptions): WebSocketSer
               'network.fetch',
               'network.waitResponse',
               'files.upload',
+              'files.chooseAndUpload',
               'files.uploadData'
             ]
           });
@@ -250,6 +251,8 @@ async function dispatch(input: {
       return requireCdp(cdp).waitResponse(command.params as never);
     case 'files.upload':
       return requireCdp(cdp).uploadFiles(command.params as never);
+    case 'files.chooseAndUpload':
+      return requireCdp(cdp).chooseAndUploadFiles(command.params as never);
     case 'files.uploadData':
       return requireCdp(cdp).uploadFileData(command.params as never);
     default:

@@ -2,6 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Locator, type Page } 
 import { resolve } from 'node:path';
 import type {
   AttributeParams,
+  FileChooseUploadParams,
   FileUploadParams,
   FileUploadDataParams,
   FillParams,
@@ -289,6 +290,22 @@ export class CdpBrowser {
     await this.selectorLocator(params).setInputFiles(files, {
       timeout: params.timeoutMs ?? 5000
     });
+    return { uploaded: true, count: files.length };
+  }
+
+  async chooseAndUploadFiles(params: FileChooseUploadParams): Promise<{ uploaded: true; count: number }> {
+    const page = this.pageById(params.pageId);
+    const files = params.files.map((file) => resolveLocalFilePath(file));
+    const chooserPromise = page.waitForEvent('filechooser', { timeout: params.timeoutMs ?? 5000 });
+    if (params.clickText) {
+      await page.getByText(params.clickText, { exact: params.exact }).first().click({ timeout: params.timeoutMs ?? 5000 });
+    } else if (params.clickSelector) {
+      await page.locator(params.clickSelector).click({ timeout: params.timeoutMs ?? 5000 });
+    } else {
+      await this.selectorLocator(params).click({ timeout: params.timeoutMs ?? 5000 });
+    }
+    const chooser = await chooserPromise;
+    await chooser.setFiles(files);
     return { uploaded: true, count: files.length };
   }
 

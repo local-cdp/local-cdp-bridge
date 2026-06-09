@@ -29,6 +29,7 @@ export type BridgeMethod =
   | 'network.fetch'
   | 'network.waitResponse'
   | 'files.upload'
+  | 'files.chooseAndUpload'
   | 'files.uploadData';
 
 export interface BridgeCommand<TParams = unknown> {
@@ -186,6 +187,13 @@ export interface WaitResponseParams extends PageTargetParams {
 
 export interface FileUploadParams extends SelectorParams {
   files: string[];
+}
+
+export interface FileChooseUploadParams extends SelectorParams {
+  files: string[];
+  clickSelector?: string;
+  clickText?: string;
+  exact?: boolean;
 }
 
 export interface BrowserMediaFile {

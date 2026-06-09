@@ -37,6 +37,7 @@ const DEFAULT_CAPABILITIES: BridgeMethod[] = [
   'network.fetch',
   'network.waitResponse',
   'files.upload',
+  'files.chooseAndUpload',
   'files.uploadData'
 ];
 
