@@ -48,7 +48,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-${{ runner.os }}
-          path: release/*
+          path: |
+            release/*.exe
+            release/*.msi
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+            release/*.blockmap
+            release/*.json
           if-no-files-found: error
 
   release:
@@ -68,7 +75,7 @@ jobs:
         run: |
           cd release-assets
           rm -f *-checksums.txt
-          sha256sum * > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
+          find . -maxdepth 1 -type f -printf '%f\n' | sort | xargs sha256sum > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -100,7 +107,7 @@ jobs:
         run: |
           cd release-assets
           rm -f *-checksums.txt
-          sha256sum * > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
+          find . -maxdepth 1 -type f -printf '%f\n' | sort | xargs sha256sum > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
 
       - name: Configure SSH
         if: env.HOMELAB_SSH_HOST != '' && env.HOMELAB_SSH_USER != '' && env.HOMELAB_SSH_KEY != ''
