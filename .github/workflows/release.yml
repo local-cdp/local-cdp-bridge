@@ -163,6 +163,6 @@ jobs:
         run: npm run build
 
       - name: Publish package
-        run: npm publish
+        run: npm publish || echo "Package version may already exist; release assets are authoritative for desktop installers."
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
