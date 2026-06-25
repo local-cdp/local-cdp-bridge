@@ -44,14 +44,93 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ runner.os }}
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          path: release-assets
+          merge-multiple: true
+
       - name: Generate checksums
-        run: npm run checksums
+        run: |
+          cd release-assets
+          rm -f *-checksums.txt
+          sha256sum * > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*
+          files: release-assets/*
           generate_release_notes: true
+
+  sync-homelab:
+    name: Sync installers to homelab
+    runs-on: ubuntu-latest
+    needs: release
+    env:
+      HOMELAB_SSH_HOST: ${{ secrets.HOMELAB_SSH_HOST }}
+      HOMELAB_SSH_USER: ${{ secrets.HOMELAB_SSH_USER }}
+      HOMELAB_SSH_KEY: ${{ secrets.HOMELAB_SSH_KEY }}
+      HOMELAB_SSH_PORT: ${{ secrets.HOMELAB_SSH_PORT }}
+      HOMELAB_BRIDGE_DOWNLOAD_DIR: ${{ secrets.HOMELAB_BRIDGE_DOWNLOAD_DIR }}
+      HOMELAB_K8S_NAMESPACES: ${{ secrets.HOMELAB_K8S_NAMESPACES }}
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd release-assets
+          rm -f *-checksums.txt
+          sha256sum * > "local-cdp-bridge-${GITHUB_REF_NAME}-checksums.txt"
+
+      - name: Configure SSH
+        if: env.HOMELAB_SSH_HOST != '' && env.HOMELAB_SSH_USER != '' && env.HOMELAB_SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$HOMELAB_SSH_KEY" > ~/.ssh/homelab_key
+          chmod 600 ~/.ssh/homelab_key
+          ssh-keyscan -p "${HOMELAB_SSH_PORT:-22}" "$HOMELAB_SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload installers
+        if: env.HOMELAB_SSH_HOST != '' && env.HOMELAB_SSH_USER != '' && env.HOMELAB_SSH_KEY != ''
+        run: |
+          remote_tmp="/tmp/local-cdp-bridge-${GITHUB_REF_NAME}"
+          target_dir="${HOMELAB_BRIDGE_DOWNLOAD_DIR:-/app/.runtime/installers/local-cdp-bridge}"
+          namespaces="${HOMELAB_K8S_NAMESPACES:-app-test app-prod}"
+          ssh -i ~/.ssh/homelab_key -p "${HOMELAB_SSH_PORT:-22}" "$HOMELAB_SSH_USER@$HOMELAB_SSH_HOST" "rm -rf '$remote_tmp' && mkdir -p '$remote_tmp'"
+          rsync -avz -e "ssh -i ~/.ssh/homelab_key -p ${HOMELAB_SSH_PORT:-22}" release-assets/ "$HOMELAB_SSH_USER@$HOMELAB_SSH_HOST:$remote_tmp/"
+          ssh -i ~/.ssh/homelab_key -p "${HOMELAB_SSH_PORT:-22}" "$HOMELAB_SSH_USER@$HOMELAB_SSH_HOST" \
+            "set -euo pipefail
+             for namespace in $namespaces; do
+               pod=\$(kubectl -n \"\$namespace\" get pod -l app.kubernetes.io/name=backend -o jsonpath='{.items[0].metadata.name}')
+               kubectl -n \"\$namespace\" exec \"\$pod\" -- mkdir -p '$target_dir'
+               kubectl -n \"\$namespace\" cp '$remote_tmp/.' \"\$pod:$target_dir\"
+             done
+             rm -rf '$remote_tmp'"
+
+      - name: Skip homelab sync
+        if: env.HOMELAB_SSH_HOST == '' || env.HOMELAB_SSH_USER == '' || env.HOMELAB_SSH_KEY == ''
+        run: |
+          echo "Homelab SSH secrets are not configured; GitHub Release assets were published only."
 
   package:
     name: Publish GitHub Package

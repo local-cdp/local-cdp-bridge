@@ -1,5 +1,15 @@
 export {};
 
+type BridgeUpdateState = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+
+interface BridgeUpdateStatus {
+  state: BridgeUpdateState;
+  message: string;
+  version?: string;
+  progress?: number;
+  error?: string;
+}
+
 declare global {
   interface Window {
     bridgeDesktop: {
@@ -19,6 +29,7 @@ declare global {
           capabilities?: string[];
           requestedAt: string;
         } | null;
+        update: BridgeUpdateStatus;
       }>;
       acceptTerms(): Promise<unknown>;
       launchBrowser(browser: 'chrome' | 'edge'): Promise<{ cdpUrl: string; pid?: number }>;
@@ -30,6 +41,8 @@ declare global {
       denyPendingOrigin(): Promise<unknown>;
       revokeOrigin(origin: string): Promise<unknown>;
       openExternal(url: string): Promise<void>;
+      checkForUpdates(): Promise<BridgeUpdateStatus>;
+      installUpdate(): Promise<void>;
       onProtocolUrl(handler: (url: string) => void): void;
       onLaunchBrowser(handler: (browser: 'chrome' | 'edge') => void): void;
       onAuthorizationRequested(
@@ -42,6 +55,7 @@ declare global {
         }) => void
       ): void;
       onAuthorizationUpdated(handler: () => void): void;
+      onUpdateStatus(handler: (status: BridgeUpdateStatus) => void): void;
     };
   }
 }

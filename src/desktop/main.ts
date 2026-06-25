@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, shell, Tray } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import { fileURLToPath } from 'node:url';
 import { startHttpServer, type BridgeHttpServer } from '../server/http-server.js';
 import { detectBrowsers, launchBrowser, launchDefaultBrowser } from '../browser/launcher.js';
@@ -22,6 +23,19 @@ let pendingAuthorization:
   | null = null;
 
 const APP_VERSION = app.getVersion();
+const DEFAULT_START_URL = 'https://t.gooant.asia/publisher';
+
+type UpdateState = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+
+interface UpdateStatus {
+  state: UpdateState;
+  message: string;
+  version?: string;
+  progress?: number;
+  error?: string;
+}
+
+let updateStatus: UpdateStatus = { state: 'idle', message: 'Updater is idle.' };
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'local-cdp-bridge', privileges: { standard: true } }]);
 
@@ -208,6 +222,8 @@ function registerIpc(): void {
     saveLanguagePreference(language)
   );
   ipcMain.handle('bridge:open-external', (_event, url: string) => openExternal(url));
+  ipcMain.handle('bridge:check-for-updates', () => checkForUpdates());
+  ipcMain.handle('bridge:install-update', () => installUpdate());
   ipcMain.handle('bridge:approve-pending-origin', () => approvePendingOrigin());
   ipcMain.handle('bridge:deny-pending-origin', () => denyPendingOrigin());
   ipcMain.handle('bridge:revoke-origin', (_event, origin: string) => revokePermission(origin));
@@ -221,6 +237,10 @@ app.whenReady().then(async () => {
   await ensureServer();
   createTray();
   showWindow();
+  configureAutoUpdates();
+  setTimeout(() => {
+    void checkForUpdates({ automatic: true });
+  }, 3000);
 });
 
 app.on('activate', showWindow);
@@ -259,7 +279,8 @@ export async function getAppStatus() {
     browserPaths: await loadBrowserPathSettings(),
     systemLocale: app.getLocale() || 'en',
     permissions: await listPermissions(),
-    pendingAuthorization
+    pendingAuthorization,
+    update: updateStatus
   };
 }
 
@@ -282,7 +303,7 @@ export async function launchDebugBrowser(options: {
     cdpPort: options.cdpPort,
     profileDir: options.profileDir,
     browserPath: options.browserPath ?? (await loadBrowserPathSettings())[options.browser],
-    startUrl: options.startUrl ?? 'about:blank'
+    startUrl: options.startUrl ?? DEFAULT_START_URL
   });
 }
 
@@ -299,7 +320,7 @@ export async function launchDefaultDebugBrowser(options: {
     cdpPort: options.cdpPort,
     profileDir: options.profileDir,
     browserPath: options.browserPath,
-    startUrl: options.startUrl ?? 'about:blank'
+    startUrl: options.startUrl ?? DEFAULT_START_URL
   });
 }
 
@@ -331,7 +352,7 @@ async function handleProtocolUrl(rawUrl: string): Promise<void> {
       browser,
       cdpPort: numberParam(url, 'cdpPort'),
       profileDir: url.searchParams.get('profileDir') ?? undefined,
-      startUrl: url.searchParams.get('startUrl') ?? 'about:blank'
+      startUrl: url.searchParams.get('startUrl') ?? DEFAULT_START_URL
     });
     return;
   }
@@ -340,6 +361,83 @@ async function handleProtocolUrl(rawUrl: string): Promise<void> {
     if (origin) await requestAuthorization({ origin, allowedOrigins: [origin] });
     showWindow();
   }
+}
+
+function configureAutoUpdates(): void {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    setUpdateStatus({ state: 'checking', message: 'Checking for updates.' });
+  });
+  autoUpdater.on('update-available', (info) => {
+    setUpdateStatus({
+      state: 'available',
+      message: `Update ${info.version} is available. Downloading...`,
+      version: info.version
+    });
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    setUpdateStatus({
+      state: 'not-available',
+      message: `Browser Bridge ${info.version || APP_VERSION} is up to date.`,
+      version: info.version || APP_VERSION
+    });
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    setUpdateStatus({
+      state: 'downloading',
+      message: `Downloading update ${Math.round(progress.percent)}%.`,
+      progress: progress.percent
+    });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    setUpdateStatus({
+      state: 'downloaded',
+      message: `Update ${info.version} is ready to install.`,
+      version: info.version
+    });
+  });
+  autoUpdater.on('error', (error) => {
+    setUpdateStatus({
+      state: 'error',
+      message: 'Update check failed.',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  });
+}
+
+async function checkForUpdates(options: { automatic?: boolean } = {}): Promise<UpdateStatus> {
+  if (!app.isPackaged) {
+    setUpdateStatus({
+      state: 'not-available',
+      message: options.automatic ? 'Automatic updates are disabled in development.' : 'Updates require an installed app build.',
+      version: APP_VERSION
+    });
+    return updateStatus;
+  }
+  try {
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  } catch (error) {
+    setUpdateStatus({
+      state: 'error',
+      message: 'Update check failed.',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return updateStatus;
+  }
+}
+
+function installUpdate(): void {
+  if (updateStatus.state !== 'downloaded') return;
+  autoUpdater.quitAndInstall(false, true);
+}
+
+function setUpdateStatus(status: UpdateStatus): void {
+  updateStatus = status;
+  mainWindow?.webContents.send('bridge:update-status', updateStatus);
 }
 
 async function handleAuthorizationRequest(request: {

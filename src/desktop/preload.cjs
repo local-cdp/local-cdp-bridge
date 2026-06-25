@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('bridgeDesktop', {
   denyPendingOrigin: () => ipcRenderer.invoke('bridge:deny-pending-origin'),
   revokeOrigin: (origin) => ipcRenderer.invoke('bridge:revoke-origin', origin),
   openExternal: (url) => ipcRenderer.invoke('bridge:open-external', url),
+  checkForUpdates: () => ipcRenderer.invoke('bridge:check-for-updates'),
+  installUpdate: () => ipcRenderer.invoke('bridge:install-update'),
   onProtocolUrl: (handler) => {
     ipcRenderer.on('bridge:protocol-url', (_event, url) => handler(url));
   },
@@ -23,5 +25,8 @@ contextBridge.exposeInMainWorld('bridgeDesktop', {
   },
   onAuthorizationUpdated: (handler) => {
     ipcRenderer.on('bridge:authorization-updated', () => handler());
+  },
+  onUpdateStatus: (handler) => {
+    ipcRenderer.on('bridge:update-status', (_event, status) => handler(status));
   }
 });
