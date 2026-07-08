@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, shell, Tray } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import electron from 'electron';
+import type { BrowserWindow as ElectronBrowserWindow, Tray as ElectronTray } from 'electron';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { startHttpServer, type BridgeHttpServer } from '../server/http-server.js';
 import { detectBrowsers, launchBrowser, launchDefaultBrowser } from '../browser/launcher.js';
@@ -7,9 +8,14 @@ import { clearBrowserPath, loadBrowserPathSettings, saveBrowserPath, saveLanguag
 import { acceptConsent, hasCurrentConsent, TERMS_VERSION } from '../security/consent.js';
 import { grantPermission, listPermissions, revokePermission } from '../security/permissions.js';
 import type { BridgeMethod } from '../protocol/types.js';
+import type { autoUpdater as ElectronAutoUpdater } from 'electron-updater';
 
-let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
+const require = createRequire(import.meta.url);
+const { autoUpdater } = require('electron-updater') as { autoUpdater: typeof ElectronAutoUpdater };
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, shell, Tray } = electron;
+
+let mainWindow: ElectronBrowserWindow | null = null;
+let tray: ElectronTray | null = null;
 let server: BridgeHttpServer | null = null;
 let externalServerPort: number | null = null;
 let pendingAuthorization:
@@ -45,7 +51,7 @@ if (!hasSingleInstanceLock) {
   app.quit();
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(): ElectronBrowserWindow {
   const appIcon = loadAppIcon();
   const window = new BrowserWindow({
     width: 820,
