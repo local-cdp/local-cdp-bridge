@@ -36,6 +36,7 @@ interface UpdateStatus {
 }
 
 let updateStatus: UpdateStatus = { state: 'idle', message: 'Updater is idle.' };
+let activeUpdateCheck: 'automatic' | 'manual' | null = null;
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'local-cdp-bridge', privileges: { standard: true } }]);
 
@@ -384,6 +385,7 @@ function configureAutoUpdates(): void {
       message: `Browser Bridge ${info.version || APP_VERSION} is up to date.`,
       version: info.version || APP_VERSION
     });
+    activeUpdateCheck = null;
   });
   autoUpdater.on('download-progress', (progress) => {
     setUpdateStatus({
@@ -398,13 +400,20 @@ function configureAutoUpdates(): void {
       message: `Update ${info.version} is ready to install.`,
       version: info.version
     });
+    activeUpdateCheck = null;
   });
   autoUpdater.on('error', (error) => {
+    if (activeUpdateCheck === 'automatic') {
+      setUpdateStatus({ state: 'idle', message: 'Browser Bridge checks for updates automatically.' });
+      activeUpdateCheck = null;
+      return;
+    }
     setUpdateStatus({
       state: 'error',
       message: 'Update check failed.',
       error: error instanceof Error ? error.message : String(error)
     });
+    activeUpdateCheck = null;
   });
 }
 
@@ -417,16 +426,25 @@ async function checkForUpdates(options: { automatic?: boolean } = {}): Promise<U
     });
     return updateStatus;
   }
+  activeUpdateCheck = options.automatic ? 'automatic' : 'manual';
   try {
     await autoUpdater.checkForUpdates();
     return updateStatus;
   } catch (error) {
+    if (options.automatic) {
+      setUpdateStatus({ state: 'idle', message: 'Browser Bridge checks for updates automatically.' });
+      return updateStatus;
+    }
     setUpdateStatus({
       state: 'error',
       message: 'Update check failed.',
       error: error instanceof Error ? error.message : String(error)
     });
     return updateStatus;
+  } finally {
+    if (!options.automatic) {
+      activeUpdateCheck = null;
+    }
   }
 }
 
